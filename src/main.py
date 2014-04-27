@@ -1,5 +1,7 @@
 import socket
 import sys
+import time
+from other import ChampData
 
 server = "irc.twitch.tv"       #settings
 channel = "#broccoliyumyum"
@@ -15,12 +17,58 @@ irc.send("NICK "+ botnick +"\n")                            #sets nick
 irc.send("PRIVMSG nickserv :iNOOPE\r\n")    #auth
 irc.send("JOIN "+ channel +"\n")        #join the chan
 
+#Champ Stuff
+champfile = open("./champlist.brocc")
+data = ChampData(champfile)
+
+def GetMessage(text):
+   privMsgIndex = text.find('PRIVMSG')
+   msg = ""
+   if privMsgIndex != -1:
+      msgAfterPriv = text[privMsgIndex:]
+      colonIndex = msgAfterPriv.find(':')
+
+      if colonIndex != -1:
+         msg = msgAfterPriv[colonIndex + 1:]
+
+   return msg
+
+def StripMsg(text):
+   if text[0] == "!":
+      return text[1:]
+   else:
+      return text
+
 while 1:    #puts it in a loop
    text=irc.recv(2040)  #receive the text
    print (text)   #print text to console
 
    if text.find('PING') != -1:                          #check if 'PING' is found
       irc.send('PONG ' + text.split() [1] + '\r\n') #returnes 'PONG' back to the server (prevents pinging out!)
-	
-   if text.find(':!hi') != -1:
-      irc.send("PRIVMSG " + channel + " :HELLO THERE\r\n");
+      continue
+   	
+   msg = GetMessage(text)
+   data.Test()
+   print("Got message: " + msg)
+
+   if msg.find("!") != -1:
+      msg = StripMsg(msg)
+      print("Stripped msg: " + msg)
+      if msg != "":
+         if data.IsChamp(msg):
+            print("Voting for champ: " + msg)
+            data.VoteChamp(msg.rstrip())
+         if msg.find("showvotes") != -1:
+            print("Showing votes")
+            votes = data.GetVotes()
+            if not votes:
+               printstring = "No votes at this time!"
+            else:
+               for vote in votes:
+                  print(repr(vote))
+                  irc.send("PRIVMSG " + channel + " :" + vote + "\n")
+         if msg.find("test") != -1:
+            print("testing")
+            irc.send("PRIVMSG " + channel + " :test\n")
+
+            

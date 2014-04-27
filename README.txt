@@ -1,0 +1,1 @@
+This bot is intended to be developed for HoTS streams.

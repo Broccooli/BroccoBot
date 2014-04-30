@@ -1,8 +1,10 @@
 import sys
+from operator import itemgetter
 
 class ChampData:
     def __init__(self, text):
-        self.champDict = {}        
+        self.champDict = {}
+        self.sortedChamps = []
 
         for champ in text.readlines():
             print(champ)
@@ -11,7 +13,7 @@ class ChampData:
     def IsChamp(self, champ):
         print("Checking champ")
         champ = champ.rstrip()
-        print(champ)
+        print(repr(champ))
         if champ in self.champDict:
             return True
         else:
@@ -28,6 +30,17 @@ class ChampData:
     def VoteChamp(self, champ):
         if self.IsChamp(champ):
             self.champDict[champ] += 1
+
+    def SortByVotes(self):
+        self.sortedChamps = sorted(self.champDict.items(), key=itemgetter(1), reverse=True)
+
+    def GetWinner(self):
+        self.SortByVotes()
+        return self.sortedChamps[0]
+
+    def GetTop(self, num):
+        self.SortByVotes()
+        return self.sortedChamps[0:num]
 
     def Test(self):
         for champ in self.champDict:

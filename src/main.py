@@ -1,6 +1,7 @@
 import socket
 import sys
 import time
+import util
 from other import ChampData
 
 server = "irc.twitch.tv"       #settings
@@ -21,23 +22,25 @@ irc.send("JOIN "+ channel +"\n")        #join the chan
 champfile = open("./champlist.brocc")
 data = ChampData(champfile)
 
-def GetMessage(text):
-   privMsgIndex = text.find('PRIVMSG')
-   msg = ""
-   if privMsgIndex != -1:
-      msgAfterPriv = text[privMsgIndex:]
-      colonIndex = msgAfterPriv.find(':')
+def SendMessage(channel, msg):
+   irc.send("PRIVMSG " + channel + " :" + msg + "\n")
+   
+def GetMessageAndUser(text):
+   endPriv = text.find('PRIVMSG') + len('PRIVMSG') + 1
+   userAndMessage = text[endPriv:] # Strips unnecessary text, leaving only the text that contains user and message
+   pound = userAndMessage.find('#')
+   colon = userAndMessage.find(':')
+   user = userAndMessage[pound + 1: colon - 1] #finds user
+   userMessage = userAndMessage[colon + 1:] #finds message
+   return [user, userMessage] #return the two   
 
-      if colonIndex != -1:
-         msg = msgAfterPriv[colonIndex + 1:]
-
-   return msg
-
-def StripMsg(text):
-   if text[0] == "!":
-      return text[1:]
+def ValidateCommand(text):
+   text = text[1:]
+   colon = text.find(":")
+   if (colon == -1):
+      return util.ValidCommand(text)
    else:
-      return text
+      return util.ValidCommand(text[:colon])
 
 while 1:    #puts it in a loop
    text=irc.recv(2040)  #receive the text
@@ -47,28 +50,37 @@ while 1:    #puts it in a loop
       irc.send('PONG ' + text.split() [1] + '\r\n') #returnes 'PONG' back to the server (prevents pinging out!)
       continue
    	
-   msg = GetMessage(text)
-   data.Test()
-   print("Got message: " + msg)
+   msgUser = GetMessageAndUser(text)
+   user = msgUser[0]
+   userMessage = msgUser[1]
 
-   if msg.find("!") != -1:
-      msg = StripMsg(msg)
-      print("Stripped msg: " + msg)
-      if msg != "":
-         if data.IsChamp(msg):
-            print("Voting for champ: " + msg)
-            data.VoteChamp(msg.rstrip())
-         if msg.find("showvotes") != -1:
+   if userMessage.find("!") == 0:
+      if (ValidateCommand(userMessage)):   # Returns true if valid command
+         if (userMessage.find("!vote") != -1):
+            champToVote = userMessage[userMessage.find(":") + 1:]
+            if data.IsChamp(champToVote): # Get the champ the user is voting for
+               print("Voting for champ: " + champToVote)
+               data.VoteChamp(champToVote.rstrip())
+         elif userMessage.find("!showvotes") != -1:
             print("Showing votes")
             votes = data.GetVotes()
             if not votes:
-               printstring = "No votes at this time!"
+               printstring = "No votes at this time! /r/n"
+               SendMessage(channel, printstring)
             else:
                for vote in votes:
-                  print(repr(vote))
-                  irc.send("PRIVMSG " + channel + " :" + vote + "\n")
-         if msg.find("test") != -1:
-            print("testing")
-            irc.send("PRIVMSG " + channel + " :test\n")
+                  SendMessage(channel, vote)
+         elif userMessage.find("!winning") != -1:
+            winner = data.GetWinner()
+            printstring = "The winner is " + winner[0] + " with " + str(winner[1]) + " votes"
+            SendMessage(channel, printstring)
+         elif userMessage.find("!top3") != -1:
+            top3 = data.GetTop(3)
+            i = 1
+            for champ in top3:
+               printstring = str(i) + ": " + champ[0] + " with " + str(champ[1]) + " votes"
+               SendMessage(channel, printstring)
+               i = i + 1
+            
 
             
